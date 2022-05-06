@@ -1,6 +1,7 @@
 const db = require('./db/connection');
 const inquirer = require('inquirer');
-const displayEmployees = require('./routes/employeeRoutes');
+const { response } = require('express');
+// const displayEmployees = require('./routes/employeeRoutes');
 // const {displayDepartments} = require('./routes/departmentRoutes.js');
 // const {anotherRole} = require('./routes/roleRoutes');
 // const displayEmployees = require('./routes/employeeRoutes');
@@ -46,7 +47,7 @@ const menuPrompt = async () => {
             break;
 
             case 'ADD an employee':
-                //function for adding employee
+                anotherEmployee();
             break;
 
             case 'UPDATE an employee role':
@@ -178,6 +179,7 @@ const anotherRole = () => {
 }
 
 
+// Query functions for "employee" table
 
 const displayEmployees = () => { 
     const sql = `SELECT employee.id, employee.first_name, employee.last_name, role.title, department.department_name, role.salary
@@ -193,6 +195,87 @@ const displayEmployees = () => {
         menuPrompt();
     })
 };
+
+
+const anotherEmployee = () => {
+    inquirer.prompt([
+        {
+            type: 'input',
+            name: 'firstName',
+            message: 'What is the first name of the new employee?'
+        },
+        {
+            type: 'input',
+            name: 'lastName',
+            message: 'What is the last name of the new employee?'
+        }
+    ])
+    .then(userData => {
+        let responses = [userData.firstName, userData.lastName];
+
+        db.promise().query(`SELECT * FROM role`)
+        .then(([rows]) => {
+            const roleList = rows.map(({ title, id}) => ({name: title, value: id}));
+
+            inquirer.prompt([
+                {
+                    type: 'list',
+                    name: 'role',
+                    message: 'What role does this employee have?',
+                    choices: roleList
+                }
+            ])
+            .then(userData => {
+                let roleChoice = userData.role;
+                responses.push(roleChoice);
+
+                inquirer.prompt([
+                    {
+                        type: 'confirm',
+                        name: 'confirmManager',
+                        message: 'Does this employee have a manager?',
+                        default: false
+                    },
+                    {
+                        type: 'list',
+                        name: 'managerSelect',
+                        message: 'Which manager does this employee report to?',
+                        choices: '',// manager list,
+                        when: ({ confirmManager }) => confirmManager
+                    }
+                ])
+                .then(userData => {
+                    if (!userData.managerSelect) {
+
+                        let sql = `INSERT INTO employee (first_name, last_name, role_id)
+                                    VALUES (?,?,?)`
+
+                        db.promise().query(sql, responses);
+                        console.log('Added ' + `${responses[0]}` + ' to the database')
+                        menuPrompt();
+                    }
+                })
+            })
+        })
+    })
+}
+
+const updateEmployee = () => {
+
+    db.promise().query(`SELECT * FROM employee`)
+    .then(([rows]) => {
+        const employeeList = rows.map(({first_name, last_name, id}) => ({name: first_name + last_name, value: id}));
+
+        inquirer.prompt([
+            {
+                type: 'list',
+                name: 'employees',
+                message: 'Which employee would you like to update?',
+                choices: employeeList
+            }
+        ])
+    })
+}
 
 // function empUpRole() {
 //     db.query("SELECT * FROM employee", (err, res) => {
