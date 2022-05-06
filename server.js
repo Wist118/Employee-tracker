@@ -72,7 +72,9 @@ db.connect(err => {
 
 menuPrompt();
 
+// Query functions for "department" table
 
+// function to query all from the department table and display it in a table format
 const displayDepartments = () => { 
     const sql = `SELECT * FROM department`;
 
@@ -85,6 +87,7 @@ const displayDepartments = () => {
     })
 };
 
+// function to query an additional department to be added to the department table 
 const anotherDepartment = () => {
     return inquirer
     .prompt([
@@ -112,7 +115,9 @@ const anotherDepartment = () => {
 
 
 
+// Query functions for "role" table
 
+// function to query all from the role table with the department that the role belongs to and display it in a table format 
 const displayRoles = () => { 
     const sql = `SELECT role.id, role.title, department.department_name, role.salary
     FROM role
@@ -128,83 +133,106 @@ const displayRoles = () => {
     });
 };
 
+// query function to add a new role to the role table
 const anotherRole = () => {
+    inquirer.prompt([
+        {
+            type: 'input',
+            name: 'name',
+            message: 'What is the name of the role?'
+        },
+        {
+            type: 'input',
+            name: 'salary',
+            message: 'What salary does this role have?'
+        }
+    ])
+    .then(userData => {
+        let responses = [userData.name, userData.salary];
 
-    db.query(`SELECT * FROM department`, (err, res) => {
-        inquirer.prompt([
-            {
-                type: 'input',
-                name: 'name',
-                message: 'What is the name of the role?'
-            },
-            {
-                type: 'input',
-                name: 'salary',
-                message: 'What salary does this role have?'
-            },
-            {
-                type: 'list',
-                name: 'department',
-                message: 'What department does this role belong to?',
-                choices: res.map(res => res.id + " " + res.department_name)
-            }
-        ])
-        .then(roleData => {
-            const sql = `INSERT INTO role (title, salary, department_id)
-            VALUES (?,?,?)`;
-            const params = [roleData.name, roleData.salary, roleData.department]
-    
-            db.promise().query(sql, params, (err, result) => {
-                if (err) {
-                    console.log(err);
+        db.promise().query(`SELECT * FROM department`)
+        .then(([rows]) => {
+            const departmentList = rows.map(({ department_name, id }) => ({ name: department_name, value: id}));
+
+            inquirer.prompt([
+                {
+                    type: 'list',
+                    name: 'department',
+                    message: 'What department does this role belong to?',
+                    choices: departmentList
                 }
+            ])
+            .then(userData => {
+                let departmentChoice = userData.department;
+                responses.push(departmentChoice);
+
+                let sql = `INSERT INTO role (title, salary, department_id)
+                            VALUES (?,?,?)`
+
+                db.promise().query(sql, responses);
+                console.log('Added ' + `${responses[0]}` + ' to the database');
+                menuPrompt();
             })
-            console.log('Added ' + roleData.name + ' to the database');
         })
-        .then(menuPrompt)    
+    })     
+}
+
+
+
+const displayEmployees = () => { 
+    const sql = `SELECT employee.id, employee.first_name, employee.last_name, role.title, department.department_name, role.salary
+    FROM employee
+    INNER JOIN role ON employee.role_id=role.id
+    INNER JOIN department ON role.department_id=department.id`;
+
+    db.query(sql, (err, rows) => {
+        if (err) {
+            console.log(err)
+        }
+        console.table(rows);
+        menuPrompt();
     })
 };
 
+// function empUpRole() {
+//     db.query("SELECT * FROM employee", (err, res) => {
+//         if (err) throw err;
+//         let values = [res];
+//         inquirer.prompt([
+//             {
+//                 type: "list",
+//                 message: "Which employee's role would you like to update?",
+//                 name: "whichemp",
+//                 choices: values
+//             }
+//         ]).then(employee => {
+//             let empId = employee.whichemp.split(' ')[0];
 
-function empUpRole() {
-    db.query("SELECT * FROM employee", (err, res) => {
-        if (err) throw err;
-        let values = [res];
-        inquirer.prompt([
-            {
-                type: "list",
-                message: "Which employee's role would you like to update?",
-                name: "whichemp",
-                choices: values
-            }
-        ]).then(employee => {
-            let empId = employee.whichemp.split(' ')[0];
+//             db.query("SELECT * FROM role", (err, res) => {
+//                 if (err) throw err;
+//                 inquirer.prompt([
+//                     {
+//                         type: "list",
+//                         message: "What is the employee's new role?",
+//                         name: "newrole",
+//                         choices: res.map(res => res.id + " " + res.title)
+//                     }
+//                 ]).then(newrole => {
+//                     let roleId = newrole.newrole.split(' ')[0];
+//                     console.log(empId, roleId)
+//                     console.log(employee, newrole)
+//                     console.log(newrole.id, employee.id)
 
-            db.query("SELECT * FROM role", (err, res) => {
-                if (err) throw err;
-                inquirer.prompt([
-                    {
-                        type: "list",
-                        message: "What is the employee's new role?",
-                        name: "newrole",
-                        choices: res.map(res => res.id + " " + res.title)
-                    }
-                ]).then(newrole => {
-                    let roleId = newrole.newrole.split(' ')[0];
-                    console.log(empId, roleId)
-                    console.log(employee, newrole)
-                    console.log(newrole.id, employee.id)
-
-                    let query = db.query("UPDATE employee SET role_id = ? WHERE id = ?",
-                        [roleId, empId],
-                        (err, res) => {
-                            if (err) throw err;
-                        }
-                    );
-                    start();
-                });
-            });
-        });
-    });
-};
-module.exports = menuPrompt;
+//                     let query = db.query("UPDATE employee SET role_id = ? WHERE id = ?",
+//                         [roleId, empId],
+//                         (err, res) => {
+//                             if (err) throw err;
+//                         }
+//                     );
+//                     start();
+//                 });
+//             });
+//         });
+//     });
+// };
+// module.exports = menuPrompt;
