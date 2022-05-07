@@ -24,8 +24,8 @@
   ## Contributing
 
   ## Tutorial
-  [Click here](https://youtu.be/Gixk98lrK38) to view YouTube tutorial  
-  ![image](https://user-images.githubusercontent.com/98563241/162597253-eba096b9-978f-401f-9ac3-14254f1bf225.png)
+  [Click here](https://www.youtube.com/watch?v=srV4JJz5tsM) to view YouTube tutorial  
+  
     
   ## ContactMe
   Contact me for additional questions or for ways you can contribute to this project!  
