@@ -60,7 +60,7 @@ const menuPrompt = async () => {
         console.log(err);
         menuPrompt();
     };
-}
+};
 
 // Start server after DB connection
 db.connect(err => {
@@ -84,7 +84,7 @@ const displayDepartments = () => {
         }
         console.table(rows);
         menuPrompt();
-    })
+    });
 };
 
 // function to query an additional department to be added to the department table 
@@ -172,10 +172,10 @@ const anotherRole = () => {
                 db.promise().query(sql, responses);
                 console.log('Added ' + `${responses[0]}` + ' to the database');
                 displayRoles();
-            })
-        })
-    })     
-}
+            });
+        });
+    });
+};
 
 
 // Query functions for "employee" table
@@ -199,7 +199,7 @@ const displayEmployees = () => {
         }
         console.table(rows);
         menuPrompt();
-    })
+    });
 };
 
 // function to add an employee
@@ -261,7 +261,7 @@ const anotherEmployee = () => {
                                         VALUES (?,?,?)`
     
                             db.promise().query(sql, responses);
-                            console.log('Added ' + `${responses[0]}` + ' to the database')
+                            console.log('Added ' + `${responses[0]}` + ' to the database');
                             menuPrompt();
                         }
                         else {
@@ -272,15 +272,15 @@ const anotherEmployee = () => {
                             VALUES (?,?,?,?)`
                             
                             db.promise().query(sql, responses);
-                            console.log('Added ' + `${responses[0]}` + ' ' + `${responses[1]}` + ' to the database')
+                            console.log('Added ' + `${responses[0]}` + ' ' + `${responses[1]}` + ' to the database');
                             displayEmployees();
-                        }
-                    })
-                })
-            })
-        })
-    })
-}
+                        };
+                    });
+                });
+            });
+        });
+    });
+};
 
 // function to update an employee role
 const updateEmployee = () => {
@@ -321,8 +321,8 @@ const updateEmployee = () => {
                     db.promise().query(sql, responses);
                     console.log('Updated the employee with the new role')
                     displayEmployees();
-                })
-            })
-        })
-    })
-}
+                });
+            });
+        });
+    });
+};
