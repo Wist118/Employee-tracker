@@ -1,13 +1,10 @@
-const db = require('./db/connection');
+// required packages
 const inquirer = require('inquirer');
-const { response } = require('express');
-// const displayEmployees = require('./routes/employeeRoutes');
-// const {displayDepartments} = require('./routes/departmentRoutes.js');
-// const {anotherRole} = require('./routes/roleRoutes');
-// const displayEmployees = require('./routes/employeeRoutes');
 
+// database connection
+const db = require('./db/connection');
 
-
+// initial prompt for user
 const menuPrompt = async () => {
     try {
         let menuData = await inquirer.prompt({
@@ -51,7 +48,7 @@ const menuPrompt = async () => {
             break;
 
             case 'UPDATE an employee role':
-                //function for updating an employee role
+                updateEmployee();
             break;
 
             case 'I am all done':
@@ -77,7 +74,9 @@ menuPrompt();
 
 // function to query all from the department table and display it in a table format
 const displayDepartments = () => { 
-    const sql = `SELECT * FROM department`;
+    const sql = `SELECT department.department_name AS Department,
+    department.id
+    FROM department`;
 
     db.query(sql, (err, rows) => {
         if (err) {
@@ -109,9 +108,9 @@ const anotherDepartment = () => {
             }
             
         })
-        console.log('Added ' + departmentData.name + ' to the database');
+        console.log('Added ' + departmentData.name + ' to the database'); 
     })
-    .then(menuPrompt);
+    .then(displayDepartments);
 };
 
 
@@ -172,7 +171,7 @@ const anotherRole = () => {
 
                 db.promise().query(sql, responses);
                 console.log('Added ' + `${responses[0]}` + ' to the database');
-                menuPrompt();
+                displayRoles();
             })
         })
     })     
@@ -180,12 +179,19 @@ const anotherRole = () => {
 
 
 // Query functions for "employee" table
-
+// function to show all employees
 const displayEmployees = () => { 
-    const sql = `SELECT employee.id, employee.first_name, employee.last_name, role.title, department.department_name, role.salary
+    const sql = `SELECT employee.id AS ID,
+    CONCAT (employee.last_name,', ',employee.first_name) AS Employee,
+    role.title AS Position,
+    department.department_name AS Department,
+    role.salary AS Salary,
+    CONCAT (manager.last_name,', ',manager.first_name) AS Manager
     FROM employee
-    INNER JOIN role ON employee.role_id=role.id
-    INNER JOIN department ON role.department_id=department.id`;
+    LEFT JOIN role ON employee.role_id = role.id
+    LEFT JOIN department ON role.department_id = department.id
+    LEFT JOIN employee manager ON employee.manager_id = manager.id
+    ORDER BY employee.last_name`;
 
     db.query(sql, (err, rows) => {
         if (err) {
@@ -196,7 +202,7 @@ const displayEmployees = () => {
     })
 };
 
-
+// function to add an employee
 const anotherEmployee = () => {
     inquirer.prompt([
         {
@@ -229,37 +235,54 @@ const anotherEmployee = () => {
                 let roleChoice = userData.role;
                 responses.push(roleChoice);
 
-                inquirer.prompt([
-                    {
-                        type: 'confirm',
-                        name: 'confirmManager',
-                        message: 'Does this employee have a manager?',
-                        default: false
-                    },
-                    {
-                        type: 'list',
-                        name: 'managerSelect',
-                        message: 'Which manager does this employee report to?',
-                        choices: '',// manager list,
-                        when: ({ confirmManager }) => confirmManager
-                    }
-                ])
-                .then(userData => {
-                    if (!userData.managerSelect) {
+                db.promise().query(`SELECT * FROM employee WHERE employee.manager_id IS null`)
+                .then(([rows]) => {
+                    const managerList = rows.map(({ first_name, last_name, id,}) => ({name: first_name + ' ' + last_name, value: id}));
 
-                        let sql = `INSERT INTO employee (first_name, last_name, role_id)
-                                    VALUES (?,?,?)`
+                    inquirer.prompt([
+                        {
+                            type: 'confirm',
+                            name: 'confirmManager',
+                            message: 'Does this employee have a manager?',
+                            default: false
+                        },
+                        {
+                            type: 'list',
+                            name: 'managerSelect',
+                            message: 'Which manager does this employee report to?',
+                            choices: managerList,
+                            when: ({ confirmManager }) => confirmManager
+                        }
+                    ])
+                    .then(userData => {
+                        if (!userData.managerSelect) {
+    
+                            let sql = `INSERT INTO employee (first_name, last_name, role_id)
+                                        VALUES (?,?,?)`
+    
+                            db.promise().query(sql, responses);
+                            console.log('Added ' + `${responses[0]}` + ' to the database')
+                            menuPrompt();
+                        }
+                        else {
+                            let managerChoice = userData.managerSelect;
+                            responses.push(managerChoice);
 
-                        db.promise().query(sql, responses);
-                        console.log('Added ' + `${responses[0]}` + ' to the database')
-                        menuPrompt();
-                    }
+                            let sql = `INSERT INTO employee (first_name, last_name, role_id, manager_id)
+                            VALUES (?,?,?,?)`
+                            
+                            db.promise().query(sql, responses);
+                            console.log('Added ' + `${responses[0]}` + ' ' + `${responses[1]}` + ' to the database')
+                            displayEmployees();
+                        }
+                    })
                 })
             })
         })
     })
 }
 
+// function to update an employee role
 const updateEmployee = () => {
 
     db.promise().query(`SELECT * FROM employee`)
@@ -270,52 +293,36 @@ const updateEmployee = () => {
             {
                 type: 'list',
                 name: 'employees',
-                message: 'Which employee would you like to update?',
+                message: 'Choose an employee to update their role',
                 choices: employeeList
             }
         ])
+        .then(userData => {
+            let responses = [userData.employees];
+
+            db.promise().query(`SELECT * FROM role`)
+            .then(([rows]) => {
+                const roleList = rows.map(({ title, id }) => ({name: title, value: id}));
+
+                inquirer.prompt([
+                    {
+                        type: 'list',
+                        name: 'role',
+                        message: 'Please select a role to update chosen employee.',
+                        choices: roleList
+                    }
+                ])
+                .then(userData => {
+                    let roleChoice = userData.role;
+                    responses.unshift(roleChoice);
+
+                    let sql = `UPDATE employee SET role_id = ? WHERE id = ?`
+
+                    db.promise().query(sql, responses);
+                    console.log('Updated the employee with the new role')
+                    displayEmployees();
+                })
+            })
+        })
     })
 }
-
-// function empUpRole() {
-//     db.query("SELECT * FROM employee", (err, res) => {
-//         if (err) throw err;
-//         let values = [res];
-//         inquirer.prompt([
-//             {
-//                 type: "list",
-//                 message: "Which employee's role would you like to update?",
-//                 name: "whichemp",
-//                 choices: values
-//             }
-//         ]).then(employee => {
-//             let empId = employee.whichemp.split(' ')[0];
-
-//             db.query("SELECT * FROM role", (err, res) => {
-//                 if (err) throw err;
-//                 inquirer.prompt([
-//                     {
-//                         type: "list",
-//                         message: "What is the employee's new role?",
-//                         name: "newrole",
-//                         choices: res.map(res => res.id + " " + res.title)
-//                     }
-//                 ]).then(newrole => {
-//                     let roleId = newrole.newrole.split(' ')[0];
-//                     console.log(empId, roleId)
-//                     console.log(employee, newrole)
-//                     console.log(newrole.id, employee.id)
-
-//                     let query = db.query("UPDATE employee SET role_id = ? WHERE id = ?",
-//                         [roleId, empId],
-//                         (err, res) => {
-//                             if (err) throw err;
-//                         }
-//                     );
-//                     start();
-//                 });
-//             });
-//         });
-//     });
-// };
-// module.exports = menuPrompt;
